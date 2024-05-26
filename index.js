@@ -40,10 +40,16 @@ app.get('/info', (request, response) => {
     <p>Phonebook has info for ${plength} people </p>
     <p>${date}</p>`)
   })
+
   
 app.get('/api/persons', (request, response) => {
     response.json(persons)
   })
+
+app.get('', (request, response) => {
+  response.send(`
+  <p>Welcome to my phone directory </p>`)
+})
 
 app.get('/api/persons/:id', (request,response) => {
     const id = Number(request.params.id)
