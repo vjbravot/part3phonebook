@@ -1,51 +1,36 @@
-require('dotenv').config()
 const express = require('express')
-const morgan = require('morgan')
-const cors = require('cors')
+const app = express()
+
+require('dotenv').config()
+
 const Person = require('./models/person')
 
-const app = express()
-app.use(express.json())
+app.use(express.static('dist'))
+
+const requestLogger = (request, response, next) => {
+  console.log('Method:', request.method)
+  console.log('Path:  ', request.path)
+  console.log('Body:  ', request.body)
+  console.log('---')
+  next()
+}
+
+
+const cors = require('cors')
 app.use(cors())
+
+app.use(express.json())
+app.use(requestLogger)
+
+const morgan = require('morgan')
 morgan.token('body', req => {
     return JSON.stringify(req.body)
   })
-  
 app.use(morgan(':method :url - :response-time ms :body '))
 
 const date = new Date();
 
 
-/* if (process.argv.length == 5){
-  const person = new Person({
-    name: process.argv[3],
-    number: process.argv[4]
-  })
-  person.save().then(result => {
-    console.log(`${person.name} number ${person.number}added to directory`)
-    mongoose.connection.close()
-  })
-}
-else if (process.argv.length == 3){
-    Person.find({}).then(result => {
-    console.log('Phonebook:')
-    result.forEach(person => {
-      console.log(`${person.name} ${person.number}`)
-    })
-    console.log(process.argv[2])
-    mongoose.connection.close()
-  })
-} */
-
-
-app.get('/info', (request, response) => {
-    var plength = persons.length
-    response.send(`
-    <p>Phonebook has info for ${plength} people </p>
-    <p>${date}</p>`)
-  })
-
-  
 app.get('/api/persons', (request, response) => {
   Person.find({}).then(persons => {
     response.json(persons)
@@ -57,7 +42,7 @@ app.get('', (request, response) => {
   <p>Welcome to my phone directory </p>`)
 })
 
-app.get('/api/persons/:id', (request,response) => {
+app.get('/api/persons/:id', (request,response,next) => {
     Person.findById(request.params.id).then(person => {
       if (person) {
         response.json(person)
@@ -68,8 +53,9 @@ app.get('/api/persons/:id', (request,response) => {
     .catch(error => next(error))
     })
   
-app.post('/api/persons', (request, response) => {
-    const body = request.body
+app.post('/api/persons/', (request, response, next) => {
+    
+  const body = request.body
   
     if (!body.name) {
       return response.status(400).json({ 
@@ -90,10 +76,10 @@ app.post('/api/persons', (request, response) => {
   
     person.save().then(savedPerson =>{
       response.json(savedPerson)
-    })
+    }).catch(error => next(error))
   })
 
-  app.delete('/api/persons/:id', (request, response) => {
+  app.delete('/api/persons/:id', (request, response, next) => {
     Person.findByIdAndDelete(request.params.id)
     .then(result => {
       response.status(204).end()
@@ -109,7 +95,10 @@ app.post('/api/persons', (request, response) => {
       number: body.number,
     }
   
-      Person.findOneAndUpdate({name: person.name}, {number: person.number})
+      Person.findOneAndUpdate(
+        {name: person.name},
+        {number: person.number},
+        {new: true, runValidators: true, context: 'query'})
       .then(updatedPerson => {
       response.json(updatedPerson)
       })
@@ -129,7 +118,9 @@ app.post('/api/persons', (request, response) => {
   
     if (error.name === 'CastError') {
       return response.status(400).send({ error: 'malformatted id' })
-    } 
+    } else if (error.name === 'ValidationError'){
+      return response.status(400).json({ error: error.message })
+    }
   
     next(error)
   }
